@@ -517,7 +517,7 @@ Production safe.
 ```
 
 Folder Structure
-''' text
+
 api_registry/
 
 ├── payments/
@@ -529,7 +529,7 @@ api_registry/
 │
 ├── inventory/
 │   ├── stock_update.yaml
-'''
+
 
 
 
