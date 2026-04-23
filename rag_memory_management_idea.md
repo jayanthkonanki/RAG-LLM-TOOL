@@ -517,9 +517,8 @@ Production safe.
 ```
 
 Folder Structure
-'''sql
-api_registry/
 
+api_registry/
 ├── payments/
 │   ├── refund.yaml
 │   ├── charge.yaml
