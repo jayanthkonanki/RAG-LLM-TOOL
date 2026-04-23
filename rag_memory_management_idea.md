@@ -507,3 +507,12 @@ This creates:
 ## maintainable  
 ## production-safe API intelligence system
 
+
+# Git + YAML + Worker Job
+## Simple.
+## Auditable.
+## Version controlled.
+## Production safe.
+
+
+
