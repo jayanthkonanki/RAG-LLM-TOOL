@@ -517,7 +517,7 @@ Production safe.
 ```
 
 Folder Structure
-''' sql
+'''sql
 api_registry/
 
 ├── payments/
