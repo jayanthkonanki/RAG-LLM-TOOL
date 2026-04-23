@@ -508,11 +508,28 @@ This creates:
 ## production-safe API intelligence system
 
 
-# Git + YAML + Worker Job
-## Simple.
-## Auditable.
-## Version controlled.
-## Production safe.
+Git + YAML + Worker Job
+```text
+Simple.
+Auditable.
+Version controlled.
+Production safe.
+```
+
+Folder Structure
+''' text
+api_registry/
+
+├── payments/
+│   ├── refund.yaml
+│   ├── charge.yaml
+│
+├── users/
+│   ├── create_user.yaml
+│
+├── inventory/
+│   ├── stock_update.yaml
+'''
 
 
 
