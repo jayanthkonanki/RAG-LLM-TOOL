@@ -1,0 +1,11 @@
+# Exclude non-essential files from backend image
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.git
+*.log
+.env
+venv
+.venv

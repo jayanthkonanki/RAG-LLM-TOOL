@@ -1,0 +1,9 @@
+# Exclude local build artifacts that should not be copied into the container
+.next
+node_modules
+.git
+*.log
+.env
+.env.local
+.env*.local
+README.md

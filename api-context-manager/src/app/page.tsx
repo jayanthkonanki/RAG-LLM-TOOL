@@ -1,4 +1,5 @@
 'use client';
+import { useEffect } from 'react';
 import { TitleBar } from '@/components/TitleBar';
 import { Sidebar } from '@/components/Sidebar';
 import { MainWorkspace } from '@/components/MainWorkspace';
@@ -7,9 +8,15 @@ import { BottomPanel } from '@/components/BottomPanel';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { CreateAppModal, CreateGroupModal, CreateEndpointModal } from '@/components/Modals';
 import { useUIStore } from '@/store/uiStore';
+import { useEndpointsStore } from '@/store/endpointsStore';
 
 export default function Home() {
   const { rightPanelOpen } = useUIStore();
+  const { fetchEndpoints } = useEndpointsStore();
+
+  useEffect(() => {
+    fetchEndpoints();
+  }, [fetchEndpoints]);
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">

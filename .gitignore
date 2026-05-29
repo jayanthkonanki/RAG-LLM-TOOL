@@ -2,3 +2,11 @@ venv/
 Readme_Files/
 Experiment_Files/__pycache__/
 Experiment_Files/
+
+# Environment secrets — never commit these
+.env
+.env.local
+.env.*.local
+
+# Commit .env.example instead (no real secrets)
+!.env.example
