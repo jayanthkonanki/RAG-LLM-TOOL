@@ -2,3 +2,16 @@ fastapi
 uvicorn[standard]
 psycopg2-binary
 pydantic
+
+# Celery + RabbitMQ broker
+celery[rabbitmq]
+
+# Milvus vector DB client
+pymilvus
+
+# HTTP client (sync for celery tasks, async for RAG endpoint)
+requests
+httpx
+
+# PydanticAI with OpenAI-compatible backend (used for Ollama /v1 endpoint)
+pydantic-ai[openai]

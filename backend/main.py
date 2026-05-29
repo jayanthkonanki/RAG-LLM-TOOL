@@ -21,22 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-import os
-
-DB_HOST     = os.getenv("DB_HOST", "localhost")
-DB_PORT     = int(os.getenv("DB_PORT", "5432"))
-DB_NAME     = os.getenv("DB_NAME", "rag_state")
-DB_USER     = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "123")
-
-def get_db_connection():
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        database=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-    )
+from db_config import get_db_connection
 
 
 class ActionLog(BaseModel):
@@ -157,6 +142,30 @@ def log_action(log: ActionLog):
         return {"status": "success", "message": "Action logged successfully"}
     except Exception as e:
         print(f"Error logging action: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class RagQuery(BaseModel):
+    question: str
+
+@app.post("/api/rag/query")
+async def query_rag(query: RagQuery):
+    try:
+        from rag_agent import rag_query
+        answer = await rag_query(query.question)
+        return {"answer": answer}
+    except Exception as e:
+        print(f"Error querying RAG: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/rag/status")
+def get_rag_status():
+    try:
+        from milvus_setup import get_milvus_client, get_collection_stats, ensure_collection
+        milvus = get_milvus_client()
+        ensure_collection(milvus)
+        return get_collection_stats(milvus)
+    except Exception as e:
+        print(f"Error getting RAG status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

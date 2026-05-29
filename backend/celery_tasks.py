@@ -1,107 +1,152 @@
-import psycopg2
+"""
+celery_tasks.py — Async task: embed endpoint text → store/delete in Milvus.
+
+Flow triggered by the poller:
+  1. Poller picks PENDING log from PostgreSQL
+  2. Poller dispatches process_endpoint_embedding to RabbitMQ
+  3. This worker fetches endpoint data, calls Ollama for embedding
+  4. Upserts (or deletes) the vector in Milvus
+  5. Marks the log as DONE (or FAILED)
+"""
+import os
 import json
 import requests
-import os
+
 from celery_app import celery_app
-from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType
+from db_config import get_db_connection
+from milvus_setup import get_milvus_client, ensure_collection, COLLECTION_NAME
 
-MILVUS_URI = os.getenv("MILVUS_URI", "http://localhost:19530")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-OLLAMA_URI = os.getenv("OLLAMA_URI", "http://localhost:11434")
+OLLAMA_URI  = os.getenv("OLLAMA_URI", "http://localhost:11434")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
 
-# Initialize Milvus Client
-milvus_client = MilvusClient(uri=MILVUS_URI)
-COLLECTION_NAME = "endpoints_collection"
+DB_HOST     = os.getenv("DB_HOST", "localhost")
+DB_PORT     = int(os.getenv("DB_PORT", "5432"))
+DB_NAME     = os.getenv("DB_NAME", "rag_state")
+DB_USER     = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "123")
 
-# Create collection if not exists
-if not milvus_client.has_collection(COLLECTION_NAME):
-    schema = CollectionSchema(
-        fields=[
-            FieldSchema(name="id", dtype=DataType.VARCHAR, is_primary=True, max_length=100),
-            FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=768),
-            FieldSchema(name="metadata", dtype=DataType.JSON)
-        ],
-        auto_id=False,
-        enable_dynamic_field=True
-    )
-    # Define index params
-    index_params = milvus_client.prepare_index_params()
-    index_params.add_index(
-        field_name="embedding", 
-        index_type="FLAT", 
-        metric_type="L2"
-    )
-    
-    milvus_client.create_collection(
-        collection_name=COLLECTION_NAME,
-        schema=schema,
-        index_params=index_params
-    )
 
-def get_db_connection():
-    return psycopg2.connect(
-        host=DB_HOST,
-        database="rag_state",
-        user="postgres",
-        password="123",
-        port=5432
-    )
+# ──────────────────────────────────────────────────────────────
+# Helpers
+# ──────────────────────────────────────────────────────────────
 
-def generate_embedding(text: str):
+def generate_embedding(text: str) -> list:
+    """
+    Call Ollama /api/embed and return the embedding vector.
+    Uses the newer 'input' field format (Ollama ≥ 0.1.26).
+    """
     response = requests.post(
-        f"{OLLAMA_URI}/api/embeddings",
-        json={
-            "model": "nomic-embed-text:latest",
-            "prompt": text
-        }
+        f"{OLLAMA_URI}/api/embed",
+        json={"model": EMBED_MODEL, "input": text},
+        timeout=120,
     )
-    if response.status_code == 200:
-        return response.json().get("embedding")
-    else:
-        raise Exception(f"Failed to generate embedding: {response.text}")
+    response.raise_for_status()
+    data = response.json()
+    # Ollama returns {"embeddings": [[...]]}
+    return data["embeddings"][0]
 
-@celery_app.task(name="process_endpoint_embedding", queue="endpoint_tasks")
-def process_endpoint_embedding(log_id: int, endpoint_id: str, action: str):
+
+def build_embed_text(data: dict) -> str:
+    """Build a rich text representation of an endpoint for embedding."""
+    return (
+        f"Name: {data.get('name', '')}\n"
+        f"Path: {data.get('path', '')}\n"
+        f"Method: {data.get('method', '')}\n"
+        f"Description: {data.get('description', '')}"
+    )
+
+
+# ──────────────────────────────────────────────────────────────
+# Celery Task
+# ──────────────────────────────────────────────────────────────
+
+@celery_app.task(
+    name="process_endpoint_embedding",
+    queue="endpoint_tasks",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=10,
+)
+def process_endpoint_embedding(self, log_id: int, endpoint_id: str, action: str):
+    """
+    Main Celery task.
+
+    Args:
+        log_id      : ID in user_action_logs (used to mark DONE/FAILED)
+        endpoint_id : UUID of the endpoint in the endpoints table
+        action      : 'create' | 'update' | 'delete'
+    """
+    conn = None
     try:
+        # ── 1. Get Milvus client + ensure collection exists ──────────
+        milvus = get_milvus_client()
+        ensure_collection(milvus)
+
+        # ── 2. Open DB connection ─────────────────────────────────────
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
+        # ── 3. Process based on action ───────────────────────────────
         if action == "delete":
-            milvus_client.delete(
+            milvus.delete(
                 collection_name=COLLECTION_NAME,
-                filter=f"id == '{endpoint_id}'"
+                filter=f"id == '{endpoint_id}'",
             )
-            print(f"Deleted {endpoint_id} from Milvus")
+            print(f"[celery] Deleted vector for endpoint {endpoint_id}")
+
         else:
-            # Get endpoint data for create/update
-            cursor.execute("SELECT data FROM endpoints WHERE id=%s", (endpoint_id,))
+            # create or update: fetch current endpoint data
+            cursor.execute("SELECT data FROM endpoints WHERE id = %s", (endpoint_id,))
             row = cursor.fetchone()
-            
-            if row:
-                data = row[0]
-                text_to_embed = f"Name: {data.get('name')}\nPath: {data.get('path')}\nMethod: {data.get('method')}\nDescription: {data.get('description')}"
-                
-                embedding = generate_embedding(text_to_embed)
-                
-                milvus_client.upsert(
+
+            if row is None:
+                print(f"[celery] Endpoint {endpoint_id} not found in DB — skipping.")
+            else:
+                endpoint_data = row[0]  # psycopg2 returns JSONB as dict
+                embed_text = build_embed_text(endpoint_data)
+
+                print(f"[celery] Generating embedding for {endpoint_id}...")
+                embedding = generate_embedding(embed_text)
+
+                milvus.upsert(
                     collection_name=COLLECTION_NAME,
                     data=[
                         {
                             "id": endpoint_id,
                             "embedding": embedding,
-                            "metadata": data
+                            "metadata": endpoint_data,
                         }
-                    ]
+                    ],
                 )
-                print(f"Upserted {endpoint_id} to Milvus with embeddings")
-        
-        # Mark log as done
-        cursor.execute("UPDATE user_action_logs SET status='DONE' WHERE id=%s", (log_id,))
+                print(f"[celery] Upserted vector for {endpoint_id} in Milvus ✓")
+
+        # ── 4. Mark log as DONE ──────────────────────────────────────
+        cursor.execute(
+            "UPDATE user_action_logs SET status = 'DONE' WHERE id = %s",
+            (log_id,),
+        )
         conn.commit()
         cursor.close()
-        conn.close()
-        return f"Successfully processed log {log_id}"
-    except Exception as e:
-        print(f"Error processing task: {e}")
-        # Optional: mark as FAILED
-        raise
+        return f"log_id={log_id} endpoint={endpoint_id} action={action} → DONE"
+
+    except Exception as exc:
+        print(f"[celery] ERROR processing log {log_id}: {exc}")
+
+        # Mark log as FAILED in Postgres (best-effort)
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE user_action_logs SET status = 'FAILED' WHERE id = %s",
+                    (log_id,),
+                )
+                conn.commit()
+            except Exception:
+                pass
+
+        # Celery retry with exponential back-off
+        raise self.retry(exc=exc)
+
+    finally:
+        if conn:
+            conn.close()
