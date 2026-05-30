@@ -6,7 +6,7 @@ import { useEndpointsStore } from '@/store/endpointsStore';
 import { MethodBadge } from '@/components/ui/MethodBadge';
 import {
   ChevronRight, ChevronDown, Plus, Folder, FolderOpen,
-  Layers, Search, File, FolderCode, LayoutGrid, MoreHorizontal,
+  Layers, Search, FolderCode, LayoutGrid, MessageSquare, Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,7 @@ export function Sidebar() {
     expandedApps, expandedGroups, toggleApp, toggleGroup,
     selectedEndpointId, selectEndpoint, activePanelView, setActivePanelView,
     openSearch, openCreateAppModal, openCreateGroupModal, openCreateEndpointModal,
+    selectedChatAppIds, toggleChatApp,
   } = useUIStore();
 
   const { applications, groups } = useApplicationsStore();
@@ -51,6 +52,16 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Chat-app selection hint */}
+      {selectedChatAppIds.length > 0 && (
+        <div className="mx-3 mb-2 px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/20 flex items-center gap-1.5">
+          <MessageSquare className="w-3 h-3 text-blue-400 shrink-0" />
+          <span className="text-[10px] text-blue-400">
+            {selectedChatAppIds.length} app{selectedChatAppIds.length > 1 ? 's' : ''} in chat
+          </span>
+        </div>
+      )}
+
       {/* Filter input */}
       <div className="px-3 pb-2">
         <input
@@ -67,23 +78,46 @@ export function Sidebar() {
           const appGroups = groups.filter((g) => g.applicationId === app.id);
           const isExpanded = expandedApps.has(app.id);
           const totalEndpoints = appGroups.reduce((sum, g) => sum + g.endpointIds.length, 0);
+          const isSelectedForChat = selectedChatAppIds.includes(app.id);
 
           return (
             <div key={app.id} className="mb-1">
               {/* App row */}
-              <button
-                onClick={() => toggleApp(app.id)}
-                className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-md hover:bg-zinc-800/50 text-left group transition-colors"
-              >
-                <span className="text-zinc-600 group-hover:text-zinc-400 transition-colors">
-                  {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                </span>
-                <Layers className="w-3.5 h-3.5 text-blue-400/70 shrink-0" />
-                <span className="flex-1 text-[12px] font-medium text-zinc-300 truncate">{app.name}</span>
-                <span className="text-[10px] text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded-full">
-                  {totalEndpoints}
-                </span>
-              </button>
+              <div className={cn(
+                'flex items-center rounded-md group transition-colors pr-1',
+                isSelectedForChat ? 'bg-blue-500/8' : 'hover:bg-zinc-800/50'
+              )}>
+                <button
+                  onClick={() => toggleApp(app.id)}
+                  className="flex items-center gap-1.5 px-1.5 py-1.5 flex-1 min-w-0 text-left"
+                >
+                  <span className="text-zinc-600 group-hover:text-zinc-400 transition-colors">
+                    {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                  </span>
+                  <Layers className="w-3.5 h-3.5 text-blue-400/70 shrink-0" />
+                  <span className="flex-1 text-[12px] font-medium text-zinc-300 truncate">{app.name}</span>
+                  <span className="text-[10px] text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded-full shrink-0">
+                    {totalEndpoints}
+                  </span>
+                </button>
+
+                {/* Chat-select toggle */}
+                <button
+                  onClick={() => toggleChatApp(app.id)}
+                  title={isSelectedForChat ? 'Remove from chat' : 'Add to chat'}
+                  className={cn(
+                    'p-1 rounded transition-all shrink-0',
+                    isSelectedForChat
+                      ? 'text-blue-400 opacity-100'
+                      : 'opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-blue-400'
+                  )}
+                >
+                  {isSelectedForChat
+                    ? <Check className="w-3 h-3" />
+                    : <MessageSquare className="w-3 h-3" />
+                  }
+                </button>
+              </div>
 
               {/* Groups */}
               <AnimatePresence>
@@ -101,7 +135,6 @@ export function Sidebar() {
 
                       return (
                         <div key={group.id} className="ml-4">
-                          {/* Group row — split into toggle area + action button as siblings */}
                           <div className="flex items-center rounded-md hover:bg-zinc-800/50 group transition-colors pr-1">
                             <button
                               onClick={() => toggleGroup(group.id)}
@@ -172,7 +205,7 @@ export function Sidebar() {
 
         {filteredApps.length === 0 && (
           <div className="px-3 py-6 text-center text-[11px] text-zinc-700">
-            No applications found
+            {applications.length === 0 ? 'No applications yet — click + to create one' : 'No applications found'}
           </div>
         )}
       </div>

@@ -1,11 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import { useApplicationsStore } from '@/store/applicationsStore';
 import { useEndpointsStore } from '@/store/endpointsStore';
 import { Modal, FormField, inputClass, textareaClass, selectClass } from '@/components/ui/Modal';
 import type { HttpMethod, EndpointCategory, RiskLevel, DataSensitivity } from '@/types';
-import { MOCK_GROUPS } from '@/data/mockData';
 
 // ─── Create Application Modal ────────────────────────────────────────────────
 export function CreateAppModal() {
@@ -15,10 +14,10 @@ export function CreateAppModal() {
   const [desc, setDesc] = useState('');
   const [tags, setTags] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    addApplication(name.trim(), desc.trim(), tags.split(',').map((t) => t.trim()).filter(Boolean));
+    await addApplication(name.trim(), desc.trim(), tags.split(',').map((t) => t.trim()).filter(Boolean));
     setName(''); setDesc(''); setTags('');
     closeCreateAppModal();
   };
@@ -52,10 +51,17 @@ export function CreateGroupModal() {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  useEffect(() => {
+    if (createGroupModalOpen) {
+      setAppId(pendingGroupAppId ?? applications[0]?.id ?? '');
+    }
+  }, [createGroupModalOpen, pendingGroupAppId, applications]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !appId) return;
-    addGroup(appId, name.trim(), desc.trim());
+    await addGroup(appId, name.trim(), desc.trim());
     setName(''); setDesc('');
     closeCreateGroupModal();
   };
@@ -110,6 +116,12 @@ export function CreateEndpointModal() {
     whenToUse: '',
     whenNotToUse: '',
   });
+
+  useEffect(() => {
+    if (createEndpointModalOpen) {
+      setForm(f => ({ ...f, groupId: pendingEndpointGroupId ?? allGroups[0]?.id ?? '' }));
+    }
+  }, [createEndpointModalOpen, pendingEndpointGroupId, allGroups]);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 

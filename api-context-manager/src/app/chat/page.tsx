@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-
+import { useApplicationsStore } from '@/store/applicationsStore';
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -119,6 +119,17 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const { applications, fetchApplications } = useApplicationsStore();
+  const [selectedAppIds, setSelectedAppIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
+
+  const toggleApp = (id: string) => {
+    setSelectedAppIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -161,7 +172,7 @@ export default function ChatPage() {
       const res = await fetch(`${API_URL}/api/rag/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: trimmed }),
+        body: JSON.stringify({ question: trimmed, app_ids: selectedAppIds }),
       });
 
       const data = await res.json();
@@ -212,6 +223,26 @@ export default function ChatPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {applications.length > 0 && (
+            <div className="flex items-center gap-2 mr-4">
+              <span className="text-xs text-zinc-400">Context Apps:</span>
+              <div className="flex gap-1 flex-wrap max-w-md">
+                {applications.map(app => (
+                  <button
+                    key={app.id}
+                    onClick={() => toggleApp(app.id)}
+                    className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                      selectedAppIds.includes(app.id)
+                        ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
+                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-300'
+                    }`}
+                  >
+                    {app.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs text-zinc-400">Live</span>
           {messages.length > 0 && (

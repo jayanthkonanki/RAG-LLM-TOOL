@@ -15,6 +15,11 @@ interface UIState {
   selectedGroupId: string | null;
   selectedEndpointId: string | null;
 
+  // Chat app selection (multi-select)
+  selectedChatAppIds: string[];
+  toggleChatApp: (id: string) => void;
+  clearChatApps: () => void;
+
   // Tabs
   openEndpointIds: string[];
   activeEndpointId: string | null;
@@ -62,16 +67,19 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   sidebarWidth: 260,
-  expandedApps: new Set(['app-1']),
-  expandedGroups: new Set(['grp-1']),
+  expandedApps: new Set<string>(),
+  expandedGroups: new Set<string>(),
   activePanelView: 'endpoints',
 
   selectedApplicationId: null,
   selectedGroupId: null,
-  selectedEndpointId: 'ep-1',
+  selectedEndpointId: null,
 
-  openEndpointIds: ['ep-1'],
-  activeEndpointId: 'ep-1',
+  // Chat multi-select — starts empty
+  selectedChatAppIds: [],
+
+  openEndpointIds: [],
+  activeEndpointId: null,
   activeTab: 'overview',
   activeBottomTab: 'context-preview',
 
@@ -125,6 +133,13 @@ export const useUIStore = create<UIState>((set) => ({
   setActivePanelView: (view) => set({ activePanelView: view }),
   setSelectedApplication: (id) => set({ selectedApplicationId: id }),
   setSelectedGroup: (id) => set({ selectedGroupId: id }),
+  toggleChatApp: (id) =>
+    set((s) => ({
+      selectedChatAppIds: s.selectedChatAppIds.includes(id)
+        ? s.selectedChatAppIds.filter((x) => x !== id)
+        : [...s.selectedChatAppIds, id],
+    })),
+  clearChatApps: () => set({ selectedChatAppIds: [] }),
   toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen })),
   toggleBottomPanel: () => set((s) => ({ bottomPanelOpen: !s.bottomPanelOpen })),
   openSearch: () => set({ searchOpen: true }),

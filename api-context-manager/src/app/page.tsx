@@ -9,14 +9,17 @@ import { GlobalSearch } from '@/components/GlobalSearch';
 import { CreateAppModal, CreateGroupModal, CreateEndpointModal } from '@/components/Modals';
 import { useUIStore } from '@/store/uiStore';
 import { useEndpointsStore } from '@/store/endpointsStore';
+import { useApplicationsStore } from '@/store/applicationsStore';
 
 export default function Home() {
   const { rightPanelOpen } = useUIStore();
   const { fetchEndpoints } = useEndpointsStore();
+  const { fetchApplications, fetchGroups } = useApplicationsStore();
 
   useEffect(() => {
+    fetchApplications().then(() => fetchGroups());
     fetchEndpoints();
-  }, [fetchEndpoints]);
+  }, [fetchApplications, fetchGroups, fetchEndpoints]);
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">

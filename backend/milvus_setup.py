@@ -1,16 +1,17 @@
 """
 milvus_setup.py — Milvus collection bootstrap.
 
-Creates the 'endpoints_collection' with:
-  - id          : VARCHAR primary key (endpoint UUID)
-  - embedding   : FLOAT_VECTOR dim=768 (nomic-embed-text output)
-  - metadata    : JSON  (full endpoint data for retrieval)
+Collection schema (v2):
+  - id             : VARCHAR primary key (endpoint UUID)
+  - embedding      : FLOAT_VECTOR dim=768 (nomic-embed-text)
+  - application_id : VARCHAR — enables per-app filtered search
+  - metadata       : JSON  (full endpoint data for retrieval)
 
-Uses HNSW index with COSINE similarity — best for semantic search
-over short text embeddings.
+HNSW + COSINE — best for semantic similarity over short text.
+Supports scalar filtering on application_id for RAG scoping.
 """
 import os
-from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType #type: ignore
+from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType  # type: ignore
 
 MILVUS_URI      = os.getenv("MILVUS_URI", "http://localhost:19530")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "endpoints_collection")
@@ -23,11 +24,22 @@ def get_milvus_client() -> MilvusClient:
 
 def ensure_collection(client: MilvusClient) -> str:
     """
-    Idempotent collection setup. Creates collection + HNSW index
-    if it does not already exist. Returns the collection name.
+    Idempotent. Drops + recreates collection if schema version changed
+    (detected by missing application_id field). Safe to re-run.
     """
     if client.has_collection(COLLECTION_NAME):
-        return COLLECTION_NAME
+        # Check if the collection has the application_id field
+        try:
+            desc = client.describe_collection(COLLECTION_NAME)
+            field_names = [f["name"] for f in desc.get("fields", [])]
+            if "application_id" in field_names:
+                return COLLECTION_NAME  # already up to date
+            else:
+                # Old schema — drop and recreate
+                print(f"[milvus_setup] Dropping old schema for '{COLLECTION_NAME}'...")
+                client.drop_collection(COLLECTION_NAME)
+        except Exception:
+            client.drop_collection(COLLECTION_NAME)
 
     schema = CollectionSchema(
         fields=[
@@ -43,13 +55,19 @@ def ensure_collection(client: MilvusClient) -> str:
                 dim=EMBED_DIM,
             ),
             FieldSchema(
+                name="application_id",
+                dtype=DataType.VARCHAR,
+                max_length=100,
+                default_value="",
+            ),
+            FieldSchema(
                 name="metadata",
                 dtype=DataType.JSON,
             ),
         ],
         auto_id=False,
         enable_dynamic_field=True,
-        description="API endpoint vectors for RAG similarity search",
+        description="API endpoint vectors v2 — app-scoped RAG",
     )
 
     index_params = client.prepare_index_params()
@@ -65,20 +83,16 @@ def ensure_collection(client: MilvusClient) -> str:
         schema=schema,
         index_params=index_params,
     )
-    print(f"[milvus_setup] Created collection '{COLLECTION_NAME}' with HNSW/COSINE index.")
+    print(f"[milvus_setup] Created collection '{COLLECTION_NAME}' v2 with application_id field.")
     return COLLECTION_NAME
 
 
 def get_collection_stats(client: MilvusClient) -> dict:
-    """Return row count and index info for the collection."""
     try:
         stats = client.get_collection_stats(COLLECTION_NAME)
-        # The Milvus SDK may return a proto-like response object or a dict
-        # with row_count as a string — normalise both cases.
         if isinstance(stats, dict):
             raw_count = stats.get("row_count", 0)
         else:
-            # Fallback: try attribute access, then repr to avoid returning a method
             raw_count = getattr(stats, "row_count", 0)
         return {
             "collection": COLLECTION_NAME,

@@ -99,16 +99,13 @@ services:
       - rag_network
 
   # ─────────────────────────────────────────
-  # Backend Services
+  # Backend Services (using published image)
   # ─────────────────────────────────────────
   backend-api:
-    build:
-      context: ./backend
-    command: sh -c "python setup_endpoints_db.py && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    image: jayanthk82/rag-llm-tool-backend:latest
+    command: sh -c "python setup_endpoints_db.py && uvicorn main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app
     env_file:
       - .env
     depends_on:
@@ -120,11 +117,8 @@ services:
       - rag_network
 
   backend-poller:
-    build:
-      context: ./backend
+    image: jayanthk82/rag-llm-tool-backend:latest
     command: python poller.py
-    volumes:
-      - ./backend:/app
     env_file:
       - .env
     depends_on:
@@ -138,11 +132,8 @@ services:
       - rag_network
 
   celery-worker:
-    build:
-      context: ./backend
+    image: jayanthk82/rag-llm-tool-backend:latest
     command: celery -A celery_app worker --loglevel=info -Q endpoint_tasks --concurrency=2
-    volumes:
-      - ./backend:/app
     env_file:
       - .env
     depends_on:
@@ -156,18 +147,12 @@ services:
       - rag_network
 
   # ─────────────────────────────────────────
-  # Frontend
+  # Frontend (using published image)
   # ─────────────────────────────────────────
   frontend:
-    build:
-      context: ./api-context-manager
-    command: npm run dev
+    image: jayanthk82/rag-llm-tool-frontend:latest
     ports:
       - "3000:3000"
-    volumes:
-      - ./api-context-manager:/app
-      - /app/node_modules
-      - /app/.next
     env_file:
       - .env
     depends_on:

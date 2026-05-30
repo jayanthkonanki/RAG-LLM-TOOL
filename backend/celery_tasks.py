@@ -52,7 +52,9 @@ def build_embed_text(data: dict) -> str:
         f"Name: {data.get('name', '')}\n"
         f"Path: {data.get('path', '')}\n"
         f"Method: {data.get('method', '')}\n"
-        f"Description: {data.get('description', '')}"
+        f"Description: {data.get('description', data.get('shortDescription', ''))}\n"
+        f"Business Purpose: {data.get('agentContextLabels', {}).get('businessPurpose', '')}\n"
+        f"When to use: {data.get('agentContext', {}).get('whenToUse', '')}"
     )
 
 
@@ -104,6 +106,7 @@ def process_endpoint_embedding(self, log_id: int, endpoint_id: str, action: str)
             else:
                 endpoint_data = row[0]  # psycopg2 returns JSONB as dict
                 embed_text = build_embed_text(endpoint_data)
+                application_id = endpoint_data.get("applicationId", "")
 
                 print(f"[celery] Generating embedding for {endpoint_id}...")
                 embedding = generate_embedding(embed_text)
@@ -114,11 +117,12 @@ def process_endpoint_embedding(self, log_id: int, endpoint_id: str, action: str)
                         {
                             "id": endpoint_id,
                             "embedding": embedding,
+                            "application_id": application_id or "",
                             "metadata": endpoint_data,
                         }
                     ],
                 )
-                print(f"[celery] Upserted vector for {endpoint_id} in Milvus ✓")
+                print(f"[celery] Upserted {endpoint_id} app={application_id} ✓")
 
         # ── 4. Mark log as DONE ──────────────────────────────────────
         cursor.execute(
