@@ -10,7 +10,7 @@ Uses HNSW index with COSINE similarity — best for semantic search
 over short text embeddings.
 """
 import os
-from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType
+from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType #type: ignore
 
 MILVUS_URI      = os.getenv("MILVUS_URI", "http://localhost:19530")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "endpoints_collection")
@@ -73,9 +73,16 @@ def get_collection_stats(client: MilvusClient) -> dict:
     """Return row count and index info for the collection."""
     try:
         stats = client.get_collection_stats(COLLECTION_NAME)
+        # The Milvus SDK may return a proto-like response object or a dict
+        # with row_count as a string — normalise both cases.
+        if isinstance(stats, dict):
+            raw_count = stats.get("row_count", 0)
+        else:
+            # Fallback: try attribute access, then repr to avoid returning a method
+            raw_count = getattr(stats, "row_count", 0)
         return {
             "collection": COLLECTION_NAME,
-            "row_count": stats.get("row_count", 0),
+            "row_count": int(raw_count) if raw_count is not None else 0,
             "embed_dim": EMBED_DIM,
             "index_type": "HNSW",
             "metric": "COSINE",

@@ -169,5 +169,5 @@ def get_rag_status():
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn #type: ignore
     uvicorn.run(app, host="0.0.0.0", port=8000)
