@@ -99,7 +99,7 @@ services:
   # Backend Services (using published image)
   # ─────────────────────────────────────────
   backend-api:
-    image: jayanthk82/rag-llm-tool-backend:v1
+    image: jayanthk82/rag-llm-tool-backend:latest
     command: sh -c "python setup_endpoints_db.py && uvicorn main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
@@ -114,7 +114,7 @@ services:
       - rag_network
 
   backend-poller:
-    image: jayanthk82/rag-llm-tool-backend:v1
+    image: jayanthk82/rag-llm-tool-backend:latest
     command: python poller.py
     env_file:
       - .env
@@ -129,7 +129,7 @@ services:
       - rag_network
 
   celery-worker:
-    image: jayanthk82/rag-llm-tool-backend:v1
+    image: jayanthk82/rag-llm-tool-backend:latest
     command: celery -A celery_app worker --loglevel=info -Q endpoint_tasks --concurrency=2
     env_file:
       - .env
@@ -147,7 +147,7 @@ services:
   # Frontend (using published image)
   # ─────────────────────────────────────────
   frontend:
-    image: jayanthk82/rag-llm-tool-frontend:v1
+    image: jayanthk82/rag-llm-tool-frontend:latest
     ports:
       - "3000:3000"
     env_file:

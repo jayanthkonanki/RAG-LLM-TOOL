@@ -88,13 +88,15 @@ def setup_db():
         END IF;
     END $$;
     """)
-    try:
-        cursor.execute("ALTER TABLE user_action_logs ALTER COLUMN endpoint_id DROP NOT NULL;")
-    except Exception as e:
-        print("Ignoring drop not null error:", e)
-
     conn.commit()
     print("✓ DB schema ready: applications, groups, endpoints, user_action_logs")
+    
+    try:
+        cursor.execute("ALTER TABLE user_action_logs ALTER COLUMN endpoint_id DROP NOT NULL;")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print("Ignoring drop not null error:", e)
     cursor.close()
     conn.close()
 

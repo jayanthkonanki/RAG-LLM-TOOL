@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $DOCKER_USER = "jayanthk82"
-$VERSION = "latest"
+$VERSION = "v2"
 
 Write-Host "========================================="
 Write-Host " Building Images for Release ($VERSION)  "

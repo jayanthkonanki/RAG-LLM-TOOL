@@ -68,6 +68,8 @@ def poll():
             time.sleep(5)
         except Exception as e:
             print(f"[poller] Error: {e}")
+            if conn and not conn.closed:
+                conn.rollback()
             time.sleep(5)
 
 

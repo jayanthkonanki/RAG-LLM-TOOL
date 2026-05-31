@@ -83,7 +83,10 @@ def search_endpoints(ctx: RunContext[AgentDeps], query: str) -> str:
         search_kwargs["filter"] = filter_expr
 
     results = milvus.search(**search_kwargs)
-    hits = results[0] if results else []
+    try:
+        hits = results[0]
+    except (IndexError, TypeError):
+        hits = []
 
     if not hits:
         return "No matching endpoints found for the selected applications."

@@ -38,7 +38,7 @@ class NewGroup(BaseModel):
 
 class RagQuery(BaseModel):
     question: str
-    app_ids: list[str]   # required — min 1 app selected
+    app_ids: list[str] = []   # optional — defaults to empty list
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────

@@ -95,14 +95,14 @@ const CATEGORIES: EndpointCategory[] = ['authentication', 'data-retrieval', 'dat
 const RISK_LEVELS: RiskLevel[] = ['safe', 'low', 'medium', 'high', 'critical'];
 
 export function CreateEndpointModal() {
-  const { createEndpointModalOpen, closeCreateEndpointModal, pendingEndpointGroupId } = useUIStore();
+  const { createEndpointModalOpen, closeCreateEndpointModal, pendingEndpointGroupId, selectedGroupId, selectedApplicationId } = useUIStore();
   const { applications, groups } = useApplicationsStore();
   const { addEndpoint, endpoints } = useEndpointsStore();
 
   const allGroups = groups;
 
   const [form, setForm] = useState({
-    groupId: pendingEndpointGroupId ?? allGroups[0]?.id ?? '',
+    groupId: pendingEndpointGroupId ?? selectedGroupId ?? (selectedApplicationId ? allGroups.find(g => g.applicationId === selectedApplicationId)?.id : null) ?? allGroups[0]?.id ?? '',
     name: '',
     method: 'GET' as HttpMethod,
     path: '',
@@ -119,9 +119,9 @@ export function CreateEndpointModal() {
 
   useEffect(() => {
     if (createEndpointModalOpen) {
-      setForm(f => ({ ...f, groupId: pendingEndpointGroupId ?? allGroups[0]?.id ?? '' }));
+      setForm(f => ({ ...f, groupId: pendingEndpointGroupId ?? selectedGroupId ?? (selectedApplicationId ? allGroups.find(g => g.applicationId === selectedApplicationId)?.id : null) ?? allGroups[0]?.id ?? '' }));
     }
-  }, [createEndpointModalOpen, pendingEndpointGroupId, allGroups]);
+  }, [createEndpointModalOpen, pendingEndpointGroupId, selectedGroupId, selectedApplicationId, allGroups]);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
