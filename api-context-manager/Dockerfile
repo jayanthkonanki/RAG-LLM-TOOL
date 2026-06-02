@@ -9,7 +9,7 @@ RUN npm install
 # Copy source
 COPY . .
 
-# Build for production
+# Build Next.js app for production
 RUN npm run build
 
 EXPOSE 3000
