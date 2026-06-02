@@ -19,19 +19,19 @@ from dataclasses import dataclass
 
 from milvus_setup import get_milvus_client, ensure_collection, COLLECTION_NAME
 from celery_tasks import generate_embedding
+from api_executor import execute_endpoint_by_id
 
 OLLAMA_URI  = os.getenv("OLLAMA_URI", "http://localhost:11434")
 LLM_MODEL   = os.getenv("LLM_MODEL",  "llama3.2")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
 RAG_TOP_K   = int(os.getenv("RAG_TOP_K", "5"))
 
-SYSTEM_PROMPT = """You are an API documentation assistant with access to a search tool.
+SYSTEM_PROMPT = """You are an API documentation assistant with two tools.
 
-When the user asks about specific endpoints, API capabilities, how to use an endpoint,
-or anything that requires knowledge of the registered endpoints — call the search_endpoints tool.
+1. search_endpoints — use when the user asks about which endpoints exist, what they do, or how to use them.
+2. execute_endpoint  — use when the user explicitly wants to call / test / run an endpoint and provides an endpoint ID.
 
-When the user asks general questions, greetings, or clarifications that don't require
-endpoint data — answer directly without calling the tool.
+For general questions or greetings, answer directly without calling any tool.
 
 Always format responses clearly using Markdown. Be concise and precise."""
 
@@ -108,6 +108,33 @@ def search_endpoints(ctx: RunContext[AgentDeps], query: str) -> str:
         lines.append("")
 
     return "\n".join(lines)
+
+
+@_agent.tool
+def execute_endpoint(
+    ctx: RunContext[AgentDeps],
+    endpoint_id: str,
+    params: dict | None = None,
+    body: dict | None = None,
+    path_params: dict | None = None,
+) -> str:
+    """
+    Execute (call) a registered API endpoint by its ID and return the HTTP response.
+    Use this when the user wants to actually run/test an endpoint, not just look it up.
+
+    Args:
+        endpoint_id:  The ID of the endpoint to call (from search_endpoints results).
+        params:       Optional query-string parameters as a dict.
+        body:         Optional JSON request body (for POST/PUT/PATCH).
+        path_params:  Optional path-parameter substitutions, e.g. {"id": "123"}.
+    """
+    print(f"[rag_agent] Tool called: execute_endpoint(id='{endpoint_id}')")
+    return execute_endpoint_by_id(
+        endpoint_id,
+        params=params,
+        body=body,
+        path_params=path_params,
+    )
 
 
 async def rag_query(user_question: str, app_ids: list[str]) -> str:

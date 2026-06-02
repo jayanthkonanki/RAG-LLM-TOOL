@@ -2,24 +2,24 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Prevent apt-get from prompting interactively
 ENV DEBIAN_FRONTEND=noninteractive
+# Ensure UTF-8 output (avoids cp1252 UnicodeEncodeError on Windows hosts)
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=utf-8
 
-# Install system dependencies required by psycopg2-binary
+# System deps for psycopg2-binary
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python deps first (layer cache)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy all backend source (includes api_executor.py and new setup_endpoints_db.py)
 COPY . .
-
-# Keep Python output unbuffered (visible in docker logs)
-ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 

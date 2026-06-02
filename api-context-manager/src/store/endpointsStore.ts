@@ -24,7 +24,15 @@ export const useEndpointsStore = create<EndpointsState>((set, get) => ({
       const res = await fetch(`${API_URL}/api/endpoints`);
       const data = await res.json();
       if (data.endpoints) {
-        set({ endpoints: data.endpoints });
+        // Normalize: JSONB may have camelCase (UI-written) or snake_case (DB cols).
+        // Always ensure groupId and applicationId are present.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const normalized = data.endpoints.map((e: any) => ({
+          ...e,
+          groupId:       e.groupId       ?? e.group_id       ?? '',
+          applicationId: e.applicationId ?? e.application_id ?? '',
+        }));
+        set({ endpoints: normalized });
       }
     } catch (error) {
       console.error('Failed to fetch endpoints', error);
@@ -67,13 +75,9 @@ export const useEndpointsStore = create<EndpointsState>((set, get) => ({
     }
   },
 
-  deleteEndpoint: (id) => {
+  deleteEndpoint: async (id) => {
     set((state) => ({ endpoints: state.endpoints.filter((e) => e.id !== id) }));
-
-    // Delete in backend
-    fetch(`${API_URL}/api/endpoints/${id}`, {
-      method: 'DELETE',
-    }).catch(console.error);
+    await fetch(`${API_URL}/api/endpoints/${id}`, { method: 'DELETE' }).catch(console.error);
   },
 
   getByGroup: (groupId) => get().endpoints.filter((e) => e.groupId === groupId),

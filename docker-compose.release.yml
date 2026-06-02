@@ -49,9 +49,11 @@ services:
       etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls=http://0.0.0.0:2379 --data-dir=/etcd
     healthcheck:
       test: [ "CMD", "etcdctl", "endpoint", "health" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 10s
+    restart: on-failure
     networks:
       - rag_network
 
@@ -99,7 +101,7 @@ services:
   # Backend Services (using published image)
   # ─────────────────────────────────────────
   backend-api:
-    image: jayanthk82/rag-llm-tool-backend:v1
+    image: jayanthk82/rag-llm-tool-backend:v3
     command: sh -c "python setup_endpoints_db.py && uvicorn main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
@@ -110,11 +112,17 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/api/health\")' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
     networks:
       - rag_network
 
   backend-poller:
-    image: jayanthk82/rag-llm-tool-backend:v1
+    image: jayanthk82/rag-llm-tool-backend:v3
     command: python poller.py
     env_file:
       - .env
@@ -124,12 +132,12 @@ services:
       rabbitmq:
         condition: service_healthy
       backend-api:
-        condition: service_started
+        condition: service_healthy
     networks:
       - rag_network
 
   celery-worker:
-    image: jayanthk82/rag-llm-tool-backend:v1
+    image: jayanthk82/rag-llm-tool-backend:v3
     command: celery -A celery_app worker --loglevel=info -Q endpoint_tasks --concurrency=2
     env_file:
       - .env
@@ -147,7 +155,7 @@ services:
   # Frontend (using published image)
   # ─────────────────────────────────────────
   frontend:
-    image: jayanthk82/rag-llm-tool-frontend:v1
+    image: jayanthk82/rag-llm-tool-frontend:v3
     ports:
       - "3000:3000"
     env_file:
@@ -166,3 +174,4 @@ volumes:
 networks:
   rag_network:
     driver: bridge
+

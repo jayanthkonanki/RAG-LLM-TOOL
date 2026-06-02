@@ -6,7 +6,7 @@ import { useEndpointsStore } from '@/store/endpointsStore';
 import { MethodBadge } from '@/components/ui/MethodBadge';
 import {
   ChevronRight, ChevronDown, Plus, Folder, FolderOpen,
-  Layers, Search, FolderCode, LayoutGrid, MessageSquare, Check,
+  Layers, Search, FolderCode, LayoutGrid, MessageSquare, Check, Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +16,7 @@ export function Sidebar() {
     expandedApps, expandedGroups, toggleApp, toggleGroup,
     selectedEndpointId, selectEndpoint, activePanelView, setActivePanelView,
     openSearch, openCreateAppModal, openCreateGroupModal, openCreateEndpointModal,
-    selectedChatAppIds, toggleChatApp,
+    selectedChatAppIds, toggleChatApp, openDeleteModal,
   } = useUIStore();
 
   const { applications, groups } = useApplicationsStore();
@@ -77,7 +77,7 @@ export function Sidebar() {
         {filteredApps.map((app) => {
           const appGroups = groups.filter((g) => g.applicationId === app.id);
           const isExpanded = expandedApps.has(app.id);
-          const totalEndpoints = appGroups.reduce((sum, g) => sum + g.endpointIds.length, 0);
+          const totalEndpoints = appGroups.reduce((sum, g) => sum + getByGroup(g.id).length, 0);
           const isSelectedForChat = selectedChatAppIds.includes(app.id);
 
           return (
@@ -117,6 +117,15 @@ export function Sidebar() {
                     : <MessageSquare className="w-3 h-3" />
                   }
                 </button>
+
+                {/* Delete app */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); openDeleteModal('application', app.id, app.name); }}
+                  title="Delete application"
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all shrink-0 text-zinc-600 hover:text-red-400 hover:bg-red-500/10"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
               </div>
 
               {/* Groups */}
@@ -154,6 +163,14 @@ export function Sidebar() {
                             >
                               <Plus className="w-3 h-3" />
                             </button>
+                            {/* Delete group */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openDeleteModal('group', group.id, group.name); }}
+                              title="Delete group"
+                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-all shrink-0"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
 
                           {/* Endpoints */}
@@ -167,19 +184,27 @@ export function Sidebar() {
                                 className="overflow-hidden"
                               >
                                 {groupEndpoints.map((ep) => (
-                                  <button
-                                    key={ep.id}
-                                    onClick={() => selectEndpoint(ep.id)}
-                                    className={cn(
-                                      'w-full flex items-center gap-2 pl-7 pr-2 py-1.5 rounded-md text-left transition-colors',
-                                      selectedEndpointId === ep.id
-                                        ? 'bg-blue-500/10 text-zinc-100'
-                                        : 'hover:bg-zinc-800/40 text-zinc-500 hover:text-zinc-300'
-                                    )}
-                                  >
-                                    <MethodBadge method={ep.method} size="xs" />
-                                    <span className="text-[11px] truncate font-mono">{ep.path}</span>
-                                  </button>
+                                  <div key={ep.id} className="group/ep flex items-center">
+                                    <button
+                                      onClick={() => selectEndpoint(ep.id)}
+                                      className={cn(
+                                        'flex-1 flex items-center gap-2 pl-7 pr-1 py-1.5 rounded-md text-left transition-colors',
+                                        selectedEndpointId === ep.id
+                                          ? 'bg-blue-500/10 text-zinc-100'
+                                          : 'hover:bg-zinc-800/40 text-zinc-500 hover:text-zinc-300'
+                                      )}
+                                    >
+                                      <MethodBadge method={ep.method} size="xs" />
+                                      <span className="text-[11px] truncate font-mono">{ep.path}</span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); openDeleteModal('endpoint', ep.id, ep.name ?? ep.path); }}
+                                      title="Delete endpoint"
+                                      className="opacity-0 group-hover/ep:opacity-100 p-1 mr-1 rounded hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-all shrink-0"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
                                 ))}
                               </motion.div>
                             )}

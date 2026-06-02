@@ -6,7 +6,7 @@ import { MainWorkspace } from '@/components/MainWorkspace';
 import { RightPanel } from '@/components/RightPanel';
 import { BottomPanel } from '@/components/BottomPanel';
 import { GlobalSearch } from '@/components/GlobalSearch';
-import { CreateAppModal, CreateGroupModal, CreateEndpointModal } from '@/components/Modals';
+import { CreateAppModal, CreateGroupModal, CreateEndpointModal, DeleteConfirmModal } from '@/components/Modals';
 import { useUIStore } from '@/store/uiStore';
 import { useEndpointsStore } from '@/store/endpointsStore';
 import { useApplicationsStore } from '@/store/applicationsStore';
@@ -28,6 +28,7 @@ export default function Home() {
       <CreateAppModal />
       <CreateGroupModal />
       <CreateEndpointModal />
+      <DeleteConfirmModal />
 
       {/* Title bar */}
       <TitleBar />

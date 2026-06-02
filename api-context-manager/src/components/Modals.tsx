@@ -254,3 +254,64 @@ export function CreateEndpointModal() {
     </Modal>
   );
 }
+
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+export function DeleteConfirmModal() {
+  const { deleteModal, closeDeleteModal } = useUIStore();
+  const { deleteApplication, deleteGroup } = useApplicationsStore();
+  const { deleteEndpoint } = useEndpointsStore();
+  const [loading, setLoading] = useState(false);
+
+  if (!deleteModal) return null;
+  const { type, id, name } = deleteModal;
+
+  const typeLabel = type === 'application' ? 'Application' : type === 'group' ? 'Group' : 'Endpoint';
+  const warning =
+    type === 'application'
+      ? 'This will delete all groups and endpoints inside it, and remove their vectors from the AI index.'
+      : type === 'group'
+      ? 'This will delete all endpoints inside the group and remove their vectors from the AI index.'
+      : 'This will remove the endpoint and its vector from the AI index.';
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      if (type === 'application') await deleteApplication(id);
+      else if (type === 'group') await deleteGroup(id);
+      else await deleteEndpoint(id);
+      closeDeleteModal();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal open={deleteModal.open} onClose={closeDeleteModal} title={`Delete ${typeLabel}`}>
+      <div className="space-y-4">
+        <p className="text-sm text-zinc-300">
+          Are you sure you want to delete <span className="font-semibold text-white">{name}</span>?
+        </p>
+        <p className="text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+          {warning}
+        </p>
+        <div className="flex gap-2 justify-end pt-1">
+          <button
+            onClick={closeDeleteModal}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg bg-zinc-800 text-zinc-400 text-sm hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Deleting...' : `Delete ${typeLabel}`}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+

@@ -39,6 +39,7 @@ interface UIState {
   createAppModalOpen: boolean;
   createGroupModalOpen: boolean;
   createEndpointModalOpen: boolean;
+  deleteModal: { open: boolean; type: 'application' | 'group' | 'endpoint'; id: string; name: string } | null;
 
   // Actions
   toggleApp: (id: string) => void;
@@ -61,6 +62,8 @@ interface UIState {
   closeCreateGroupModal: () => void;
   openCreateEndpointModal: (groupId?: string) => void;
   closeCreateEndpointModal: () => void;
+  openDeleteModal: (type: 'application' | 'group' | 'endpoint', id: string, name: string) => void;
+  closeDeleteModal: () => void;
   pendingGroupAppId: string | null;
   pendingEndpointGroupId: string | null;
 }
@@ -93,6 +96,7 @@ export const useUIStore = create<UIState>((set) => ({
   createAppModalOpen: false,
   createGroupModalOpen: false,
   createEndpointModalOpen: false,
+  deleteModal: null,
   pendingGroupAppId: null,
   pendingEndpointGroupId: null,
 
@@ -151,4 +155,6 @@ export const useUIStore = create<UIState>((set) => ({
   closeCreateGroupModal: () => set({ createGroupModalOpen: false, pendingGroupAppId: null }),
   openCreateEndpointModal: (groupId) => set({ createEndpointModalOpen: true, pendingEndpointGroupId: groupId ?? null }),
   closeCreateEndpointModal: () => set({ createEndpointModalOpen: false, pendingEndpointGroupId: null }),
+  openDeleteModal: (type, id, name) => set({ deleteModal: { open: true, type, id, name } }),
+  closeDeleteModal: () => set({ deleteModal: null }),
 }));
